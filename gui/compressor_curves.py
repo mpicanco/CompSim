@@ -517,8 +517,6 @@ class DesignConditionsBox(QGroupBox):
             "n-butane, i-butane, n-pentane, i-pentane, n-hexane, n-heptane, "
             "n-octane, n-nonane, n-decane, hydrogen, oxygen, carbon monoxide, "
             "water, hydrogen sulfide, helium, argon, air. "
-            "<i>i-pentane, n-hexane+, carbon monoxide, helium and argon need "
-            "GERG-2008; air is not accepted by GERG-2008.</i> "
             "Fractions are mole fractions; components not "
             "listed are 0. If they do not add up to 1 (e.g. percentages) you are "
             "asked on Apply whether to normalise them. Components are listed in "

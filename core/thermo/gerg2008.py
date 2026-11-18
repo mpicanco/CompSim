@@ -43,6 +43,22 @@ _FIJ = {tuple(p): f for p, f in G.FIJ}
 _DEP = {tuple(p): v for p, v in G.DEPARTURE}
 
 
+# the "air" pseudo-component is expanded into dry air (GERG-2008 has no air
+# entry); argon stands in for the remaining traces
+AIR = {"nitrogen": 0.7812, "oxygen": 0.2096, "argon": 0.0092}
+
+
+def expand_air(composition):
+    """``composition`` with any ``air`` replaced by its N2/O2/Ar content."""
+    x_air = composition.get("air", 0.0)
+    if not x_air:
+        return composition
+    out = {c: x for c, x in composition.items() if c != "air"}
+    for c, x in AIR.items():
+        out[c] = out.get(c, 0.0) + x_air * x
+    return out
+
+
 def _gerg_name(comp):
     name = ALIASES.get(comp, comp)
     if name not in G.PURE:
@@ -154,6 +170,7 @@ _CACHE = {}
 
 
 def _mixture(composition):
+    composition = expand_air(composition)
     key = tuple(sorted((c, round(float(x), 12)) for c, x in composition.items() if x > 0.0))
     mix = _CACHE.get(key)
     if mix is None:

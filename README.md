@@ -45,9 +45,8 @@ commissioning.
   - Isothermal and EOS (φ-φ) flash with Rachford-Rice, and Raoult/Wilson
     K-values
   - Joule-Thomson cooling across throttling elements
-  - Built-in component data: methane, ethane, propane, n-/i-butane,
-    n-pentane, nitrogen, oxygen, carbon dioxide, water, hydrogen, hydrogen
-    sulfide and air; GERG-2008 covers all 21 natural-gas components
+  - Built-in component data for all 21 GERG-2008 natural-gas components
+    plus air, so every EOS accepts every valid component name
   - See [Thermodynamics](#-thermodynamics-equations-of-state-and-gas-composition)
     for EOS choice, composition entry, air and natural gas
 - 📈 **Live trends.** Plot any process variable on configurable charts.
@@ -96,11 +95,11 @@ unless you have a reason not to.
 
 | EOS | Model | Best for | Components it knows |
 |---|---|---|---|
-| **Ideal Gas** | *Z* = 1 | Low pressure, quick runs | Any name (only the molar mass is needed) |
-| **Peng-Robinson** | Cubic, *k<sub>ij</sub>* = 0 | General hydrocarbon gas; rigorous φ-φ flash in a `Vessel` | Built-in property list (below) |
-| **Soave-Redlich-Kwong** | Cubic, *k<sub>ij</sub>* = 0 | As Peng-Robinson | Built-in property list |
-| **Lee-Kesler** | Corresponding states, pseudo-critical mixing | Non-polar gas mixtures | Built-in property list |
-| **GERG-2008** | Multi-parameter Helmholtz (ISO 20765-2) | Natural gas and fiscal-quality accuracy | The 21 GERG components (below) |
+| **Ideal Gas** | *Z* = 1 | Low pressure, quick runs | All (table below) |
+| **Peng-Robinson** | Cubic, *k<sub>ij</sub>* = 0 | General hydrocarbon gas; rigorous φ-φ flash in a `Vessel` | All |
+| **Soave-Redlich-Kwong** | Cubic, *k<sub>ij</sub>* = 0 | As Peng-Robinson | All |
+| **Lee-Kesler** | Corresponding states, pseudo-critical mixing | Non-polar gas mixtures | All |
+| **GERG-2008** | Multi-parameter Helmholtz (ISO 20765-2) | Natural gas and fiscal-quality accuracy | All; `air` is expanded into N₂/O₂/Ar |
 
 Notes:
 
@@ -113,47 +112,40 @@ Notes:
 
 ### Component names
 
-Names are **lower case and must be spelled exactly** as below.
+Every name below works with every EOS. The cubic EOS, Lee-Kesler, the flash,
+the Joule-Thomson estimate and the `Mixer` use built-in critical constants,
+acentric factor, molar mass, ideal-gas *C*<sub>p</sub>, liquid density and
+Antoine coefficients for each component (helium has no Antoine fit; the
+flash uses Wilson K-values for it). GERG-2008 uses its own pure-fluid and
+binary data, and treats `air` as dry air: 0.7812 nitrogen, 0.2096 oxygen,
+0.0092 argon.
 
-| Component | Name to type | Built-in data (cubic, Lee-Kesler, flash, J-T) | GERG-2008 |
-|---|---|:---:|:---:|
-| Methane | `methane` | ✅ | ✅ |
-| Nitrogen | `nitrogen` | ✅ | ✅ |
-| Carbon dioxide | `carbon dioxide` | ✅ | ✅ |
-| Ethane | `ethane` | ✅ | ✅ |
-| Propane | `propane` | ✅ | ✅ |
-| n-Butane | `n-butane` | ✅ | ✅ |
-| Isobutane | `i-butane` | ✅ | ✅ |
-| n-Pentane | `n-pentane` | ✅ | ✅ |
-| Isopentane | `i-pentane` | — | ✅ |
-| n-Hexane … n-Decane | `n-hexane`, `n-heptane`, `n-octane`, `n-nonane`, `n-decane` | — | ✅ |
-| Hydrogen | `hydrogen` | ✅ | ✅ |
-| Oxygen | `oxygen` | ✅ | ✅ |
-| Carbon monoxide | `carbon monoxide` | — | ✅ |
-| Water | `water` | ✅ | ✅ |
-| Hydrogen sulfide | `hydrogen sulfide` | ✅ | ✅ |
-| Helium | `helium` | — | ✅ |
-| Argon | `argon` | — | ✅ |
-| Air (pseudo-component) | `air` | ✅ | ❌ |
+| Component | Name to type |
+|---|---|
+| Methane | `methane` |
+| Nitrogen | `nitrogen` |
+| Carbon dioxide | `carbon dioxide` |
+| Ethane | `ethane` |
+| Propane | `propane` |
+| n-Butane | `n-butane` |
+| Isobutane | `i-butane` |
+| n-Pentane | `n-pentane` |
+| Isopentane | `i-pentane` |
+| n-Hexane … n-Decane | `n-hexane`, `n-heptane`, `n-octane`, `n-nonane`, `n-decane` |
+| Hydrogen | `hydrogen` |
+| Oxygen | `oxygen` |
+| Carbon monoxide | `carbon monoxide` |
+| Water | `water` |
+| Hydrogen sulfide | `hydrogen sulfide` |
+| Helium | `helium` |
+| Argon | `argon` |
+| Air (pseudo-component) | `air` |
 
 Names are matched case-insensitively and extra spaces are ignored
-(`Carbon  Dioxide` → `carbon dioxide`). **Any other name is rejected** on
-Apply, and the closest valid name is suggested: `co2` → *"unknown component
+(`Carbon  Dioxide` → `carbon dioxide`). **Any other name is rejected**, on
+Apply and when a `.sim` file is opened, and the closest valid name is suggested: `co2` → *"unknown component
 'co2'. Did you mean 'carbon dioxide'?"*, and the same for `h2s`, `n2`, `ic4`,
 typos such as `metane`, and so on. A component listed twice is also rejected.
-
-> [!WARNING]
-> The components marked "—" in the built-in data column are valid names but
-> are fully modelled **only by GERG-2008**. Ideal Gas, the cubic EOS,
-> Lee-Kesler, the flash, the Joule-Thomson estimate and the `Mixer` give them
-> **air-like** properties (*M* = 28.964 g/mol, *T*<sub>c</sub> = 132.6 K,
-> *P*<sub>c</sub> = 37.71 bar, ω = 0). Use `i-pentane`, `n-hexane`+,
-> `carbon monoxide`, `helium` and `argon` only when every block of the
-> flowsheet uses GERG-2008. Conversely, GERG-2008 raises an error for `air`;
-> the simulation then **pauses** and shows the message in the status bar.
->
-> The check applies to entries made in the config panels. Compositions in a
-> `.sim` file edited by hand are not validated when the file is loaded.
 
 ### Setting a composition
 
@@ -172,7 +164,8 @@ It is entered in three places:
 | `Vessel` | `initial_composition` | Hold-up composition at *t* = 0 |
 | `Compressor` | *Curve design conditions* → gas composition | Gas the performance curves refer to (reference only; it does not change the stream) |
 
-On **Apply** / **OK** the entry is checked:
+On **Apply** / **OK** the entry is checked (the same checks run on every
+composition when a `.sim` file is opened, see below):
 
 1. **Names must be known components** (see the table above); unknown names
    are rejected with a suggestion.
@@ -187,6 +180,14 @@ On **Apply** / **OK** the entry is checked:
    component order** (the order of the table above). Names outside that list,
    such as `air`, come last, alphabetically. AGA-8 uses the same 21
    components, with each isomer pair (butanes, pentanes) in the opposite order.
+
+**Opening a `.sim` file** checks every composition in it, including ones
+edited by hand, and every `eos` name. An unknown or duplicated component,
+a negative or non-numeric fraction, an all-zero composition or an unknown
+EOS stops the load with a message naming the block and the entry; the
+flowsheet already open is left as it was. A composition that does not add up
+to 1 is normalised and listed in a warning; save the flowsheet to keep the
+corrected values.
 
 ### How composition travels between blocks
 
@@ -215,9 +216,9 @@ There is no air preset. Air can be entered in two ways:
 
 | Entry | Use it when | Limitations |
 |---|---|---|
-| `{'air': 1.0}` | Plain air with Ideal Gas, Peng-Robinson, SRK or Lee-Kesler | A single pseudo-component: **not accepted by GERG-2008**; its oxygen/nitrogen content is not tracked through a `Mixer` or `Vessel` |
+| `{'air': 1.0}` | Plain air, any EOS | A single pseudo-component (GERG-2008 expands it into N₂/O₂/Ar internally); its oxygen/nitrogen content is not tracked through a `Mixer` or `Vessel` |
 | `{'nitrogen': 0.79, 'oxygen': 0.21}` | Any EOS, and whenever air is mixed with other gases | — |
-| `{'nitrogen': 0.7809, 'oxygen': 0.2095, 'argon': 0.0093, 'carbon dioxide': 0.0003}` | Dry-air accuracy with GERG-2008 | Argon has no built-in data, so use GERG-2008 in every block |
+| `{'nitrogen': 0.7809, 'oxygen': 0.2095, 'argon': 0.0093, 'carbon dioxide': 0.0003}` | Dry-air accuracy | — |
 
 The bundled examples use `{'nitrogen': 0.79, 'oxygen': 0.21}`. Air does not
 condense at practical conditions, so a `Vessel` holding air keeps an empty
@@ -236,9 +237,8 @@ example a lean pipeline gas:
 - **GERG-2008** is the reference EOS for natural gas (ISO 20765-2, the basis
   of AGA-8) and covers every component of a normal analysis, including
   `i-pentane`, `n-hexane` to `n-decane`, `helium` and `carbon monoxide`.
-- With the **cubic EOS or Lee-Kesler**, components without built-in data are
-  air-like (see the warning above). Lump the C₆+ fraction into `n-pentane`,
-  and add `i-pentane` to `n-pentane`, rather than entering them separately.
+- The **cubic EOS and Lee-Kesler** accept the same components, with
+  generalised (less accurate) mixture behaviour and no *k<sub>ij</sub>*.
 - A dry, sweet gas behaves almost ideally at low pressure; use a real-gas EOS
   above a few bar.
 

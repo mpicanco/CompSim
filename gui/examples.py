@@ -19,6 +19,10 @@ import json
 from pathlib import Path
 
 from PyQt6.QtCore import QPointF
+from PyQt6.QtWidgets import QMessageBox
+
+from core.data import check_composition, composition_total_ok, normalize_composition
+from core.thermo import EOS_NAMES
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
@@ -83,8 +87,54 @@ def flowsheet_to_spec(window):
 
 
 # -- loading ---------------------------------------------------------------
+def _is_composition_key(key):
+    return key == "composition" or key.endswith("_composition")
+
+
+def _check_config(config, where, notes):
+    """Check the compositions and EOS name in one block config, in place.
+
+    Compositions are checked like an entry in the config panel and stored with
+    canonical names, normalised and in GERG-2008 order. Raises ValueError for
+    an entry the panel would reject; appends a note for each composition that
+    had to be normalised.
+    """
+    for key, value in config.items():
+        label = f"{where}: {key}"
+        if _is_composition_key(key):
+            z = check_composition(value, label)
+            if not composition_total_ok(z):
+                notes.append(f"{label} added up to {sum(z.values()):.6g}; normalised to 1")
+            config[key] = normalize_composition(z)
+        elif key == "eos" and value not in EOS_NAMES:
+            raise ValueError(f"{label}: unknown EOS {value!r}. Available: "
+                             + ", ".join(EOS_NAMES))
+        elif isinstance(value, dict):
+            _check_config(value, label, notes)
+
+
+def check_spec(spec):
+    """Validate the block configs of a loaded ``spec``; returns notes.
+
+    Hand-edited files get the same composition checks as the config panels.
+    Raises ValueError naming the block and entry at fault.
+    """
+    notes = []
+    for bkey, b in spec.get("blocks", {}).items():
+        config = b.get("config", {})
+        if not isinstance(config, dict):
+            raise ValueError(f"block '{b.get('name', bkey)}': config must be a dict")
+        _check_config(config, f"block '{b.get('name', bkey)}'", notes)
+    return notes
+
+
 def load_spec(window, spec):
-    """Replace the current flowsheet in ``window`` with ``spec``."""
+    """Replace the current flowsheet in ``window`` with ``spec``.
+
+    The spec is checked first (see ``check_spec``), so an invalid file leaves
+    the current flowsheet untouched. Returns the check notes.
+    """
+    notes = check_spec(spec)
     window.stop()
     scene = window.scene
     scene.clear_flowsheet()
@@ -114,6 +164,7 @@ def load_spec(window, spec):
     window._on_blocks_changed()
     scene.update()
     window.view.centerOn(scene.itemsBoundingRect().center())
+    return notes
 
 
 def load_file(window, path):
@@ -121,8 +172,14 @@ def load_file(window, path):
     spec = json.loads(Path(path).read_text(encoding="utf-8"))
     if spec.get("format") != "comp-sim-flowsheet":
         raise ValueError("not a CompSim flowsheet file")
-    load_spec(window, spec)
+    notes = load_spec(window, spec)
     window.notify(f"Loaded flowsheet: {Path(path).name}")
+    if notes:
+        QMessageBox.warning(
+            window, "Compositions normalised",
+            f"{Path(path).name}: some compositions did not add up to 1 and were "
+            "normalised. Save the flowsheet to keep the corrected values.\n\n"
+            + "\n".join(notes))
 
 
 def save_file(window, path):
