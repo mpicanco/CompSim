@@ -32,6 +32,8 @@ ALIASES = {
     "i-butane": "isobutane", "n-pentane": "n-pentane", "n-hexane": "n-hexane",
     "n-heptane": "n-heptane", "n-octane": "n-octane", "hydrogen": "hydrogen",
     "oxygen": "oxygen", "water": "water", "hydrogen sulfide": "hydrogensulfide",
+    "i-pentane": "isopentane", "n-nonane": "n-nonane", "n-decane": "n-decane",
+    "carbon monoxide": "carbonmonoxide", "helium": "helium", "argon": "argon",
 }
 
 _BIN = {}

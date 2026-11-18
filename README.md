@@ -46,7 +46,10 @@ commissioning.
     K-values
   - Joule-Thomson cooling across throttling elements
   - Built-in component data: methane, ethane, propane, n-/i-butane,
-    n-pentane, nitrogen, oxygen, water, hydrogen and air
+    n-pentane, nitrogen, oxygen, carbon dioxide, water, hydrogen, hydrogen
+    sulfide and air; GERG-2008 covers all 21 natural-gas components
+  - See [Thermodynamics](#-thermodynamics-equations-of-state-and-gas-composition)
+    for EOS choice, composition entry, air and natural gas
 - 📈 **Live trends.** Plot any process variable on configurable charts.
 - 🔌 **PLC I/O.** Map AI, AO, DI and DO tags to simulation variables using
   Modbus TCP/RTU, OPC UA, OpenPLC Runtime or a built-in virtual backend.
@@ -68,6 +71,187 @@ commissioning.
 | `Compressor` | Variable-speed compressor driven by editable OEM performance curves (pressure ratio and efficiency) |
 | `AnalogSource` | Analog signal source, for example a speed or valve-opening set-point |
 | `AnalogSink` | Analog signal display |
+
+---
+
+## 🧪 Thermodynamics: equations of state and gas composition
+
+### Where the EOS is chosen
+
+A stream carries **pressure, temperature, mass flow, phase and composition**,
+but **not** an equation of state. Each block that needs gas properties has its
+own `eos` parameter (a drop-down in its config panel) and applies that model
+to the stream it receives. Choose the same EOS in every block of a flowsheet
+unless you have a reason not to.
+
+| Block | What its EOS is used for |
+|---|---|
+| `Valve` | Inlet compressibility *Z* and molar mass in the ISA-75.01 gas flow equation; Joule-Thomson temperature drop |
+| `Vessel` | Gas molar volume (pressure from hold-up), and the phase split when `flash_method = "eos"` |
+| `Mixer` | Molar mass of each inlet, to blend mole fractions on a **molar-flow** basis |
+| `Compressor` | No selector: inlet density is always ideal gas (for the volumetric flow read on the curves) |
+| `StreamIn` | `eos` is stored but informational only; downstream blocks use their own |
+
+### Available equations of state
+
+| EOS | Model | Best for | Components it knows |
+|---|---|---|---|
+| **Ideal Gas** | *Z* = 1 | Low pressure, quick runs | Any name (only the molar mass is needed) |
+| **Peng-Robinson** | Cubic, *k<sub>ij</sub>* = 0 | General hydrocarbon gas; rigorous φ-φ flash in a `Vessel` | Built-in property list (below) |
+| **Soave-Redlich-Kwong** | Cubic, *k<sub>ij</sub>* = 0 | As Peng-Robinson | Built-in property list |
+| **Lee-Kesler** | Corresponding states, pseudo-critical mixing | Non-polar gas mixtures | Built-in property list |
+| **GERG-2008** | Multi-parameter Helmholtz (ISO 20765-2) | Natural gas and fiscal-quality accuracy | The 21 GERG components (below) |
+
+Notes:
+
+- The cubic models use no binary interaction parameters (*k<sub>ij</sub>* = 0),
+  so they are approximate for mixtures with CO₂, H₂S, water or hydrogen.
+- GERG-2008 returns the **vapour** root. If no vapour root exists at (*P*, *T*)
+  it falls back to *Z* = 1 rather than stopping the simulation.
+- The `Vessel` rigorous flash (`flash_method = "eos"`) needs a cubic EOS. With
+  any other EOS, or if it fails to converge, it falls back to Wilson K-values.
+
+### Component names
+
+Names are **lower case and must be spelled exactly** as below.
+
+| Component | Name to type | Built-in data (cubic, Lee-Kesler, flash, J-T) | GERG-2008 |
+|---|---|:---:|:---:|
+| Methane | `methane` | ✅ | ✅ |
+| Nitrogen | `nitrogen` | ✅ | ✅ |
+| Carbon dioxide | `carbon dioxide` | ✅ | ✅ |
+| Ethane | `ethane` | ✅ | ✅ |
+| Propane | `propane` | ✅ | ✅ |
+| n-Butane | `n-butane` | ✅ | ✅ |
+| Isobutane | `i-butane` | ✅ | ✅ |
+| n-Pentane | `n-pentane` | ✅ | ✅ |
+| Isopentane | `i-pentane` | — | ✅ |
+| n-Hexane … n-Decane | `n-hexane`, `n-heptane`, `n-octane`, `n-nonane`, `n-decane` | — | ✅ |
+| Hydrogen | `hydrogen` | ✅ | ✅ |
+| Oxygen | `oxygen` | ✅ | ✅ |
+| Carbon monoxide | `carbon monoxide` | — | ✅ |
+| Water | `water` | ✅ | ✅ |
+| Hydrogen sulfide | `hydrogen sulfide` | ✅ | ✅ |
+| Helium | `helium` | — | ✅ |
+| Argon | `argon` | — | ✅ |
+| Air (pseudo-component) | `air` | ✅ | ❌ |
+
+> [!WARNING]
+> A name **without built-in data** (a "—" above, a misspelling such as `co2`,
+> or anything else) is **not rejected**: Ideal Gas, the cubic EOS, Lee-Kesler,
+> the flash, the Joule-Thomson estimate and the `Mixer` treat it as an
+> **air-like** component (*M* = 28.964 g/mol, *T*<sub>c</sub> = 132.6 K,
+> *P*<sub>c</sub> = 37.71 bar, ω = 0). GERG-2008, in contrast, raises an error
+> for a name it does not know; the simulation then **pauses** and shows the
+> message in the status bar. Use the GERG-only components (`i-pentane`,
+> `n-hexane`+, `carbon monoxide`, `helium`, `argon`) only when every block of
+> the flowsheet uses GERG-2008.
+
+### Setting a composition
+
+A composition is a mole-fraction dictionary `{'component': fraction, ...}`,
+for example:
+
+```python
+{'methane': 0.9, 'ethane': 0.07, 'nitrogen': 0.03}
+```
+
+It is entered in three places:
+
+| Where | Parameter | Meaning |
+|---|---|---|
+| `StreamIn` | `composition` | Composition of the feed |
+| `Vessel` | `initial_composition` | Hold-up composition at *t* = 0 |
+| `Compressor` | *Curve design conditions* → gas composition | Gas the performance curves refer to (reference only; it does not change the stream) |
+
+On **Apply** / **OK** the entry is checked:
+
+1. **Components not listed are 0.** Type only the components that are present.
+2. **Fractions must be non-negative** and not all zero.
+3. **The total must be 1** (tolerance 10⁻⁶). If it is not, for example when
+   you type percentages `{'methane': 90, 'ethane': 10}`, a dialog shows the
+   total and asks whether to **normalise**. *Yes* scales the fractions to sum
+   to 1 and applies them. *No* applies nothing, keeps the dialog open and
+   shows the error.
+4. The composition is stored and shown in the **GERG-2008 / ISO 20765-2
+   component order** (the order of the table above). Names outside that list,
+   such as `air`, come last, alphabetically. AGA-8 uses the same 21
+   components, with each isomer pair (butanes, pentanes) in the opposite order.
+
+### How composition travels between blocks
+
+Each block passes on a **copy** of the stream, so blocks never share a
+composition object.
+
+| Block | Effect on composition |
+|---|---|
+| `StreamIn` | Sets it from `composition` |
+| `Valve`, `CheckValve`, `Compressor` | Unchanged |
+| `Divider` | Unchanged; every branch gets the inlet composition and only the flow is split |
+| `Mixer` | Blends the inlets on a molar-flow basis: *z<sub>i</sub>* = Σ (*ṁ<sub>k</sub>* / *M<sub>k</sub>*) *z<sub>i,k</sub>* / Σ (*ṁ<sub>k</sub>* / *M<sub>k</sub>*), with *M<sub>k</sub>* from the Mixer's EOS |
+| `Vessel` | Integrates the component mole balance of the hold-up, flashes it, and sends the vapour composition *y* out of `vap_out` and the liquid composition *x* out of `liq_out` |
+
+The **Live values** box of every config panel lists the stream compositions:
+each material inlet; each outlet as well for blocks that can change the
+composition (`Mixer`, `Vessel`, and `StreamIn`, which has no inlet); and the
+`Vessel` hold-up composition. "—" means no flow of that phase, for example
+`liq_out` while nothing has condensed.
+
+### Special cases
+
+#### Air
+
+There is no air preset. Air can be entered in two ways:
+
+| Entry | Use it when | Limitations |
+|---|---|---|
+| `{'air': 1.0}` | Plain air with Ideal Gas, Peng-Robinson, SRK or Lee-Kesler | A single pseudo-component: **not accepted by GERG-2008**; its oxygen/nitrogen content is not tracked through a `Mixer` or `Vessel` |
+| `{'nitrogen': 0.79, 'oxygen': 0.21}` | Any EOS, and whenever air is mixed with other gases | — |
+| `{'nitrogen': 0.7809, 'oxygen': 0.2095, 'argon': 0.0093, 'carbon dioxide': 0.0003}` | Dry-air accuracy with GERG-2008 | Argon has no built-in data, so use GERG-2008 in every block |
+
+The bundled examples use `{'nitrogen': 0.79, 'oxygen': 0.21}`. Air does not
+condense at practical conditions, so a `Vessel` holding air keeps an empty
+`liq_out`.
+
+#### Natural gas
+
+There is no natural-gas preset either: enter the gas analysis directly, for
+example a lean pipeline gas:
+
+```python
+{'methane': 0.90, 'nitrogen': 0.02, 'carbon dioxide': 0.01,
+ 'ethane': 0.05, 'propane': 0.015, 'n-butane': 0.0025, 'i-butane': 0.0025}
+```
+
+- **GERG-2008** is the reference EOS for natural gas (ISO 20765-2, the basis
+  of AGA-8) and covers every component of a normal analysis, including
+  `i-pentane`, `n-hexane` to `n-decane`, `helium` and `carbon monoxide`.
+- With the **cubic EOS or Lee-Kesler**, components without built-in data are
+  air-like (see the warning above). Lump the C₆+ fraction into `n-pentane`,
+  and add `i-pentane` to `n-pentane`, rather than entering them separately.
+- A dry, sweet gas behaves almost ideally at low pressure; use a real-gas EOS
+  above a few bar.
+
+#### Wet gas and condensation
+
+`water` and the heavier hydrocarbons can condense in a `Vessel`. The phase split
+depends on `flash_method`:
+
+| `flash_method` | Model | Notes |
+|---|---|---|
+| `wilson` (default) | Wilson K-values from *T*<sub>c</sub>, *P*<sub>c</sub>, ω | Fast; rough for water |
+| `raoult` | Antoine vapour pressure / *P* | Better for water and other condensables |
+| `eos` | Rigorous φ-φ flash | Needs Peng-Robinson or SRK in the `Vessel` |
+
+The condensate leaves through `liq_out` with its own composition *x*, so the
+gas from `vap_out` is leaner in the condensable components than the feed.
+
+#### Pure gases and other mixtures
+
+A pure gas is a one-entry dictionary, e.g. `{'methane': 1.0}` (the
+`StreamIn` default) or `{'hydrogen': 1.0}`. For hydrogen-rich or CO₂-rich
+streams, prefer GERG-2008: the cubic EOS have no *k<sub>ij</sub>* and are least
+accurate there.
 
 ---
 
@@ -282,6 +466,11 @@ Typical workflow:
   for Natural Gases and Other Mixtures.* J. Chem. Eng. Data, 57(11).
 - Lee, B. I. & Kesler, M. G. (1975). *A Generalized Thermodynamic Correlation
   Based on Three-Parameter Corresponding States.* AIChE J., 21(3).
+- ISO 20765-2:2015: *Natural gas — Calculation of thermodynamic properties —
+  Part 2: Single-phase properties (gas, liquid, and dense fluid) for extended
+  ranges of application* (GERG-2008).
+- AGA Report No. 8: *Thermodynamic Properties of Natural Gas and Related
+  Gases* (2017, Part 1 DETAIL / Part 2 GERG-2008).
 - Peng, D.-Y. & Robinson, D. B. (1976). *A New Two-Constant Equation of
   State.* Ind. Eng. Chem. Fundam., 15(1).
 

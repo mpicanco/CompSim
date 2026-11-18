@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from core.base import ProcessBlock
 from core.ports import MaterialStream
+from core.thermo import get_eos
 
 
 class Mixer(ProcessBlock):
     """Adiabatic stream mixer (N inputs, 1 output).
 
-    Combines mass flows and compositions; outlet enthalpy is the flow-weighted
-    average of the inlet enthalpies (Step 2).
+    Combines mass flows and compositions. Mole fractions are blended on a
+    molar-flow basis (``F = m_dot / M`` with ``M`` from the selected EOS);
+    outlet temperature is the mass-flow-weighted average of the inlets.
     """
 
     block_type = "Mixer"
+    changes_composition = True
     category = "Equipment"
 
     def __init__(self, name=None, n_inputs=2):
@@ -20,6 +23,7 @@ class Mixer(ProcessBlock):
         for i in range(1, n_inputs + 1):
             self.add_input(f"in{i}")
         self.add_output("out")
+        self.config = {"eos": "Ideal Gas"}
 
     def update(self, dt):
         pass
@@ -38,13 +42,24 @@ class Mixer(ProcessBlock):
             self.outputs["out"].value = out
             return
 
+        # mole fractions must be weighted by molar flow, not mass flow
+        eos = get_eos(self.config.get("eos", "Ideal Gas"))
+        molar = []
+        for s in streams:
+            M = eos.molar_mass(s.composition) if s.composition else 0.0
+            molar.append(s.mass_flow / M if M > 0.0 else 0.0)
+        total_molar = sum(molar)
+
         comps = set()
         for s in streams:
             comps.update(s.composition)
         composition = {}
-        for c in comps:
-            numerator = sum(s.mass_flow * s.composition.get(c, 0.0) for s in streams)
-            composition[c] = numerator / total_mass
+        if total_molar > 0.0:
+            for c in comps:
+                composition[c] = sum(F * s.composition.get(c, 0.0)
+                                     for F, s in zip(molar, streams)) / total_molar
+        else:
+            composition = dict(streams[0].composition)
 
         out = MaterialStream(
             pressure=max(s.pressure for s in streams),

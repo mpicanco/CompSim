@@ -53,6 +53,28 @@ def block_variables(block):
     return out
 
 
+def composition_variables(block):
+    """Display-only stream compositions (dicts, never trended / sent to a PLC).
+
+    Every material inlet is listed. Material outlets are listed when the block
+    has no material inlet (a source) or can change the composition (mixer,
+    vessel), so each outlet then shows its own composition. Dict-valued states
+    (e.g. a vessel's overall hold-up composition) are listed as well.
+    """
+    out = []
+    mat_in = [n for n, p in block.inputs.items() if p.port_type.name == "MATERIAL"]
+    mat_out = [n for n, p in block.outputs.items() if p.port_type.name == "MATERIAL"]
+    for name in mat_in:
+        out.append((f"{block.name}.{name}.composition", ("port_in", name, "composition")))
+    if block.changes_composition or not mat_in:
+        for name in mat_out:
+            out.append((f"{block.name}.{name}.composition", ("port_out", name, "composition")))
+    for key, value in block.states.items():
+        if isinstance(value, dict):
+            out.append((f"{block.name}: {key}", ("state", key)))
+    return out
+
+
 def writable_variables(block):
     """Variables the outside world may write into (config, state, signal inputs)."""
     out = []

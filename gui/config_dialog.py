@@ -21,7 +21,9 @@ from PyQt6.QtWidgets import (
 )
 
 from core.thermo import EOS_NAMES
-from core.variables import block_variables, resolve, is_scalar
+from core.variables import block_variables, composition_variables, resolve, is_scalar
+from core.data import sort_composition
+from .composition import confirm_composition, parse_composition
 from .compressor_curves import CompressorCurveEditor, DesignConditionsBox
 
 # config keys rendered as a dedicated editor widget instead of generic fields
@@ -47,6 +49,12 @@ def _fmt(value):
         return str(value)
     if is_scalar(value):
         return f"{value:.6g}"
+    if isinstance(value, dict):
+        # composition {component: mole fraction}, GERG-2008 / ISO 20765 order
+        if not value:
+            return "—"
+        return ", ".join(f"{k} {v:.4f}" if is_scalar(v) else f"{k} {v}"
+                         for k, v in sort_composition(value).items())
     return str(value)
 
 
@@ -124,12 +132,16 @@ class ConfigDialog(QDialog):
 
         # -- live values -----------------------------------------------------
         live_vars = [(d, p) for d, p in block_variables(block) if p[0] != "config"]
+        # stream compositions (dicts: display-only, not offered to trends /
+        # PLC I/O); blocks that change composition list each outlet's own
+        live_vars += composition_variables(block)
         if live_vars:
             live = QGroupBox("Live values")
             live_form = QFormLayout()
             for display, path in live_vars:
                 label = QLabel()
                 label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                label.setWordWrap(True)
                 live_form.addRow(display.replace(f"{block.name}", "", 1).lstrip(":. ") or display, label)
                 self._live.append((label, path))
             host = QWidget()
@@ -204,7 +216,7 @@ class ConfigDialog(QDialog):
             w = QLineEdit(value)
             self._kinds[key] = "str"
         else:
-            w = QLineEdit(repr(value))
+            w = QLineEdit(repr(sort_composition(value) if isinstance(value, dict) else value))
             self._kinds[key] = "literal"
         self._widgets[key] = w
         return w
@@ -228,12 +240,9 @@ class ConfigDialog(QDialog):
         if type(value) is not type(current):
             raise ValueError(f"{key}: expected a {type(current).__name__}")
         if isinstance(value, dict):
-            if not value or not all(isinstance(v, (int, float)) and v >= 0 for v in value.values()):
-                raise ValueError(f"{key}: values must be non-negative numbers")
-            total = float(sum(value.values()))
-            if total <= 0:
-                raise ValueError(f"{key}: fractions must not all be zero")
-            value = {str(k): float(v) / total for k, v in value.items()}   # normalise
+            # a composition: unlisted components are 0, must add up to 1
+            # (the user is asked whether to normalise otherwise)
+            value = confirm_composition(self, parse_composition(value, key), key)
         elif isinstance(value, list):
             if not all(isinstance(v, (int, float)) and v >= 0 for v in value):
                 raise ValueError(f"{key}: values must be non-negative numbers")
@@ -296,7 +305,8 @@ class ConfigDialog(QDialog):
         # normalised literals (e.g. composition) are shown as stored
         for key, kind in self._kinds.items():
             if kind == "literal":
-                self._widgets[key].setText(repr(self.block.config[key]))
+                v = self.block.config[key]
+                self._widgets[key].setText(repr(sort_composition(v) if isinstance(v, dict) else v))
         self.refresh_live()
         self.applied.emit(self.block)
         return changed

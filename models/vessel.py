@@ -35,6 +35,7 @@ class Vessel(CapacityBlock):
     _INIT_KEYS = {"volume", "temperature", "eos", "initial_pressure", "initial_composition"}
 
     block_type = "Vessel"
+    changes_composition = True
     category = "Equipment"
 
     def __init__(self, name=None):

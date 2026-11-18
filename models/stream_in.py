@@ -7,8 +7,10 @@ from core.ports import MaterialStream
 class StreamIn(ProcessBlock):
     """Source boundary condition.
 
-    Imposes a fixed material state (composition, P, T, mass flow) and an EOS.
-    Air and natural-gas preset compositions are available via ``config``.
+    Imposes a fixed material state (composition, P, T, mass flow). There are
+    no built-in presets: air and natural gas are entered as compositions (see
+    the README section on thermodynamics). The ``eos`` key is informational;
+    each downstream block applies its own EOS.
     """
 
     block_type = "StreamIn"

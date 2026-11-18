@@ -21,6 +21,10 @@ class ProcessBlock(ABC):
 
     block_type = "generic"
     category = "generic"
+    # True when the block's material outputs can differ in composition from
+    # its inlet (mixing, phase split); the config panel then lists each
+    # output's own composition instead of just the inlet one.
+    changes_composition = False
 
     def __init__(self, name=None):
         self.name = name or self.block_type

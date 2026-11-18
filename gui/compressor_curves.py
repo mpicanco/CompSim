@@ -2,19 +2,23 @@ from __future__ import annotations
 
 import ast
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
+    QApplication,
     QDoubleSpinBox,
     QFormLayout,
+    QFrame,
     QLineEdit,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QPushButton,
+    QStyle,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +31,9 @@ from models.compressor import (
     spline_eval,
 )
 
+from core.data import sort_composition
+
+from .composition import confirm_composition, parse_composition
 from .theme import Theme
 
 KELVIN = 273.15
@@ -452,7 +459,8 @@ class DesignConditionsBox(QGroupBox):
 
     Pressure is entered in bar(a) and temperature in degC; both are stored in
     SI (Pa, K) under ``config["design_conditions"]``. The composition is a
-    ``{component: fraction}`` literal, normalised to sum to 1 on apply.
+    ``{component: fraction}`` literal; unlisted components are 0 and, if the
+    fractions do not add up to 1, the user is asked to normalise on apply.
     """
 
     def __init__(self, block, parent=None):
@@ -478,39 +486,94 @@ class DesignConditionsBox(QGroupBox):
         self.temperature.setToolTip("Inlet suction temperature of the curve design point")
         form.addRow("Suction temperature", self.temperature)
 
-        self.composition = QLineEdit(repr(dc["composition"]))
+        self.composition = QLineEdit(repr(sort_composition(dc["composition"])))
         self.composition.setToolTip(
             "Gas composition as {component: mole fraction}, e.g. "
-            "{'methane': 0.9, 'ethane': 0.1}; normalised on apply")
-        form.addRow("Gas composition", self.composition)
+            "{'methane': 0.9, 'ethane': 0.1}; unlisted components are 0, "
+            "must add up to 1 (you are asked to normalise otherwise)")
+        # row label "Gas composition" followed immediately by a small (i) button
+        # that pops up the entry help (closes on any click outside it, or Esc)
+        self.info_btn = QToolButton()
+        self.info_btn.setAutoRaise(True)
+        self.info_btn.setIcon(self.style().standardIcon(
+            QStyle.StandardPixmap.SP_MessageBoxInformation))
+        self.info_btn.setIconSize(QSize(14, 14))
+        self.info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.info_btn.setToolTip("How to enter the gas composition")
+        label_row = QWidget()
+        label_layout = QHBoxLayout(label_row)
+        label_layout.setContentsMargins(0, 0, 0, 0)
+        label_layout.setSpacing(4)
+        label_layout.addWidget(QLabel("Gas composition"))
+        label_layout.addWidget(self.info_btn)
+        label_layout.addStretch(1)
+        form.addRow(label_row, self.composition)
 
-        help_text = QLabel(
+        self._help = QLabel(
             "Enter the composition as <b>{'component': fraction, ...}</b>, e.g. "
             "<code>{'methane': 0.9, 'ethane': 0.07, 'nitrogen': 0.03}</code>. "
             "Use lower-case names in quotes (methane, ethane, propane, n-butane, "
-            "isobutane, nitrogen, carbondioxide, hydrogensulfide, water, ...), "
-            "separated by commas. Fractions are mole fractions, they need not add "
-            "up to 1 (percentages work too), and are normalised on Apply.")
-        help_text.setWordWrap(True)
-        help_text.setTextFormat(Qt.TextFormat.RichText)
-        help_text.setStyleSheet("color: gray;")
-        form.addRow(help_text)
+            "i-butane, n-pentane, nitrogen, oxygen, carbon dioxide, hydrogen, "
+            "hydrogen sulfide, water, air), "
+            "separated by commas. Fractions are mole fractions; components not "
+            "listed are 0. If they do not add up to 1 (e.g. percentages) you are "
+            "asked on Apply whether to normalise them. Components are listed in "
+            "GERG-2008 / ISO 20765 order.", self)
+        # Qt.ToolTip, not Qt.Popup: a Popup grabs the X11 pointer/keyboard,
+        # and from inside the modal config dialog that grab can lock up the
+        # whole GNOME session. A tooltip window takes no grab; we dismiss it
+        # ourselves through an application-wide event filter.
+        self._help.setWindowFlags(Qt.WindowType.ToolTip)
+        self._help.setWordWrap(True)
+        self._help.setTextFormat(Qt.TextFormat.RichText)
+        self._help.setFixedWidth(380)
+        self._help.setMargin(10)
+        self._help.setFrameShape(QFrame.Shape.StyledPanel)
+        self.info_btn.clicked.connect(self._show_help)
+
+    def _show_help(self):
+        """Toggle the composition help just below the (i) button."""
+        if self._help.isVisible():
+            self._hide_help()
+            return
+        self._help.adjustSize()
+        pos = self.info_btn.mapToGlobal(self.info_btn.rect().bottomLeft())
+        self._help.move(pos)
+        self._help.show()
+        QApplication.instance().installEventFilter(self)
+
+    def _hide_help(self):
+        QApplication.instance().removeEventFilter(self)
+        self._help.hide()
+
+    def eventFilter(self, obj, event):
+        if self._help.isVisible():
+            t = event.type()
+            if t == QEvent.Type.MouseButtonPress:
+                # a press on the (i) button itself is left to _show_help
+                if not (isinstance(obj, QWidget)
+                        and (obj is self.info_btn or self.info_btn.isAncestorOf(obj))):
+                    self._hide_help()
+            elif t == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+                self._hide_help()
+                return True          # don't let Esc also close the dialog
+            elif t == QEvent.Type.ApplicationDeactivate:
+                self._hide_help()
+        return super().eventFilter(obj, event)
+
+    def hideEvent(self, event):
+        if self._help.isVisible():
+            self._hide_help()
+        super().hideEvent(event)
 
     def validate(self):
-        """Parse the composition; raises ValueError with a user message."""
-        try:
-            value = ast.literal_eval(self.composition.text())
-        except (ValueError, SyntaxError):
-            raise ValueError("design composition: not a valid {component: fraction} literal")
-        if not isinstance(value, dict) or not value:
-            raise ValueError("design composition: expected a non-empty dict")
-        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0
-                   for v in value.values()):
-            raise ValueError("design composition: fractions must be non-negative numbers")
-        total = float(sum(value.values()))
-        if total <= 0:
-            raise ValueError("design composition: fractions must not all be zero")
-        self._composition = {str(k): float(v) / total for k, v in value.items()}
+        """Parse the composition; raises ValueError with a user message.
+
+        Unlisted components are 0; when the fractions do not add up to 1 the
+        user is asked whether to normalise them.
+        """
+        value = parse_composition(self.composition.text(), "design composition")
+        self._composition = confirm_composition(self, value, "design composition")
 
     def apply(self):
         """Write the validated values into the block; True when changed."""

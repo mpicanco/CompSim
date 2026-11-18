@@ -35,6 +35,31 @@ COMPONENTS = {
                          "cp": 29.1, "rhoL": 870.0, "antoine": (6.49457, 255.68, 266.55)},
 }
 
+# Component order of GERG-2008 / ISO 20765-2 (AGA-8 lists the same 21
+# components, with the butane and pentane isomers swapped), in this project's
+# naming. Used to list compositions in a fixed, standard order; components
+# outside the list (e.g. "air") follow, alphabetically.
+COMPONENT_ORDER = (
+    "methane", "nitrogen", "carbon dioxide", "ethane", "propane",
+    "n-butane", "i-butane", "n-pentane", "i-pentane", "n-hexane",
+    "n-heptane", "n-octane", "n-nonane", "n-decane", "hydrogen", "oxygen",
+    "carbon monoxide", "water", "hydrogen sulfide", "helium", "argon",
+)
+_ORDER_INDEX = {c: i for i, c in enumerate(COMPONENT_ORDER)}
+
+# tolerance for "the mole fractions add up to 1"
+COMPOSITION_SUM_TOL = 1e-6
+
+
+def sort_composition(z):
+    """Return ``z`` as a new dict in the GERG-2008 / ISO 20765 component order.
+
+    Components not present are implicitly 0 and are not added.
+    """
+    return dict(sorted(z.items(),
+                       key=lambda kv: (_ORDER_INDEX.get(kv[0], len(_ORDER_INDEX)), kv[0])))
+
+
 DEFAULT_MW = 0.028964  # kg/mol (air)
 DEFAULT_CP = 29.1       # J/(mol K), air-like ideal-gas Cp for unknown components
 
