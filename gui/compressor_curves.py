@@ -512,10 +512,14 @@ class DesignConditionsBox(QGroupBox):
         self._help = QLabel(
             "Enter the composition as <b>{'component': fraction, ...}</b>, e.g. "
             "<code>{'methane': 0.9, 'ethane': 0.07, 'nitrogen': 0.03}</code>. "
-            "Use lower-case names in quotes (methane, ethane, propane, n-butane, "
-            "i-butane, n-pentane, nitrogen, oxygen, carbon dioxide, hydrogen, "
-            "hydrogen sulfide, water, air), "
-            "separated by commas. Fractions are mole fractions; components not "
+            "Use these names in quotes, separated by commas (other names are "
+            "rejected): methane, nitrogen, carbon dioxide, ethane, propane, "
+            "n-butane, i-butane, n-pentane, i-pentane, n-hexane, n-heptane, "
+            "n-octane, n-nonane, n-decane, hydrogen, oxygen, carbon monoxide, "
+            "water, hydrogen sulfide, helium, argon, air. "
+            "<i>i-pentane, n-hexane+, carbon monoxide, helium and argon need "
+            "GERG-2008; air is not accepted by GERG-2008.</i> "
+            "Fractions are mole fractions; components not "
             "listed are 0. If they do not add up to 1 (e.g. percentages) you are "
             "asked on Apply whether to normalise them. Components are listed in "
             "GERG-2008 / ISO 20765 order.", self)

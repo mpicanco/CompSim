@@ -47,6 +47,10 @@ COMPONENT_ORDER = (
 )
 _ORDER_INDEX = {c: i for i, c in enumerate(COMPONENT_ORDER)}
 
+# every component name a composition may contain: the GERG-2008 set plus
+# the components with built-in property data (e.g. the "air" pseudo-component)
+KNOWN_COMPONENTS = frozenset(COMPONENT_ORDER) | frozenset(COMPONENTS)
+
 # tolerance for "the mole fractions add up to 1"
 COMPOSITION_SUM_TOL = 1e-6
 

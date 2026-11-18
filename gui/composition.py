@@ -3,10 +3,11 @@ from __future__ import annotations
 """Parsing / checking of ``{component: mole fraction}`` entries in the GUI."""
 
 import ast
+import difflib
 
 from PyQt6.QtWidgets import QMessageBox
 
-from core.data import COMPOSITION_SUM_TOL, sort_composition
+from core.data import COMPOSITION_SUM_TOL, KNOWN_COMPONENTS, sort_composition
 
 
 class CompositionCancelled(ValueError):
@@ -16,7 +17,10 @@ class CompositionCancelled(ValueError):
 def parse_composition(text, label="composition"):
     """Parse a dict literal into ``{name: float}``; raises ValueError.
 
-    Components that are not listed are taken as 0.
+    Components that are not listed are taken as 0. Names are matched
+    case-insensitively; a name that is not a known component is rejected
+    (with the closest valid name suggested) instead of silently being given
+    air-like properties.
     """
     try:
         value = ast.literal_eval(text) if isinstance(text, str) else text
@@ -29,7 +33,39 @@ def parse_composition(text, label="composition"):
         raise ValueError(f"{label}: fractions must be non-negative numbers")
     if sum(value.values()) <= 0:
         raise ValueError(f"{label}: fractions must not all be zero")
-    return {str(k).strip(): float(v) for k, v in value.items()}
+    out = {}
+    for k, v in value.items():
+        name = " ".join(str(k).split()).lower()
+        if name not in KNOWN_COMPONENTS:
+            raise ValueError(f"{label}: {_unknown_message(str(k))}")
+        if name in out:
+            raise ValueError(f"{label}: component '{name}' is listed twice")
+        out[name] = float(v)
+    return out
+
+
+# common shorthands mapped to the name the user most likely meant
+_SHORTHANDS = {
+    "c1": "methane", "ch4": "methane", "c2": "ethane", "c2h6": "ethane",
+    "c3": "propane", "c3h8": "propane", "nc4": "n-butane", "ic4": "i-butane",
+    "isobutane": "i-butane", "nc5": "n-pentane", "ic5": "i-pentane",
+    "isopentane": "i-pentane", "nc6": "n-hexane", "n2": "nitrogen",
+    "o2": "oxygen", "co2": "carbon dioxide", "carbondioxide": "carbon dioxide",
+    "co": "carbon monoxide", "carbonmonoxide": "carbon monoxide",
+    "h2": "hydrogen", "h2o": "water", "h2s": "hydrogen sulfide",
+    "hydrogensulfide": "hydrogen sulfide", "hydrogen sulphide": "hydrogen sulfide",
+    "he": "helium", "ar": "argon",
+}
+
+
+def _unknown_message(name):
+    key = " ".join(name.split()).lower()
+    guess = _SHORTHANDS.get(key) or _SHORTHANDS.get(key.replace(" ", ""))
+    if guess is None:
+        close = difflib.get_close_matches(key, sorted(KNOWN_COMPONENTS), n=1, cutoff=0.6)
+        guess = close[0] if close else None
+    hint = f" Did you mean '{guess}'?" if guess else " See 'Component names' in the README."
+    return f"unknown component '{name}'.{hint}"
 
 
 def confirm_composition(parent, value, label="composition"):

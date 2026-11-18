@@ -136,16 +136,24 @@ Names are **lower case and must be spelled exactly** as below.
 | Argon | `argon` | — | ✅ |
 | Air (pseudo-component) | `air` | ✅ | ❌ |
 
+Names are matched case-insensitively and extra spaces are ignored
+(`Carbon  Dioxide` → `carbon dioxide`). **Any other name is rejected** on
+Apply, and the closest valid name is suggested: `co2` → *"unknown component
+'co2'. Did you mean 'carbon dioxide'?"*, and the same for `h2s`, `n2`, `ic4`,
+typos such as `metane`, and so on. A component listed twice is also rejected.
+
 > [!WARNING]
-> A name **without built-in data** (a "—" above, a misspelling such as `co2`,
-> or anything else) is **not rejected**: Ideal Gas, the cubic EOS, Lee-Kesler,
-> the flash, the Joule-Thomson estimate and the `Mixer` treat it as an
-> **air-like** component (*M* = 28.964 g/mol, *T*<sub>c</sub> = 132.6 K,
-> *P*<sub>c</sub> = 37.71 bar, ω = 0). GERG-2008, in contrast, raises an error
-> for a name it does not know; the simulation then **pauses** and shows the
-> message in the status bar. Use the GERG-only components (`i-pentane`,
-> `n-hexane`+, `carbon monoxide`, `helium`, `argon`) only when every block of
-> the flowsheet uses GERG-2008.
+> The components marked "—" in the built-in data column are valid names but
+> are fully modelled **only by GERG-2008**. Ideal Gas, the cubic EOS,
+> Lee-Kesler, the flash, the Joule-Thomson estimate and the `Mixer` give them
+> **air-like** properties (*M* = 28.964 g/mol, *T*<sub>c</sub> = 132.6 K,
+> *P*<sub>c</sub> = 37.71 bar, ω = 0). Use `i-pentane`, `n-hexane`+,
+> `carbon monoxide`, `helium` and `argon` only when every block of the
+> flowsheet uses GERG-2008. Conversely, GERG-2008 raises an error for `air`;
+> the simulation then **pauses** and shows the message in the status bar.
+>
+> The check applies to entries made in the config panels. Compositions in a
+> `.sim` file edited by hand are not validated when the file is loaded.
 
 ### Setting a composition
 
@@ -166,14 +174,16 @@ It is entered in three places:
 
 On **Apply** / **OK** the entry is checked:
 
-1. **Components not listed are 0.** Type only the components that are present.
-2. **Fractions must be non-negative** and not all zero.
-3. **The total must be 1** (tolerance 10⁻⁶). If it is not, for example when
+1. **Names must be known components** (see the table above); unknown names
+   are rejected with a suggestion.
+2. **Components not listed are 0.** Type only the components that are present.
+3. **Fractions must be non-negative** and not all zero.
+4. **The total must be 1** (tolerance 10⁻⁶). If it is not, for example when
    you type percentages `{'methane': 90, 'ethane': 10}`, a dialog shows the
    total and asks whether to **normalise**. *Yes* scales the fractions to sum
    to 1 and applies them. *No* applies nothing, keeps the dialog open and
    shows the error.
-4. The composition is stored and shown in the **GERG-2008 / ISO 20765-2
+5. The composition is stored and shown in the **GERG-2008 / ISO 20765-2
    component order** (the order of the table above). Names outside that list,
    such as `air`, come last, alphabetically. AGA-8 uses the same 21
    components, with each isomer pair (butanes, pentanes) in the opposite order.
