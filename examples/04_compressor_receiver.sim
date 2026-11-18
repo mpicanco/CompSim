@@ -1,0 +1,112 @@
+{
+  "format": "comp-sim-flowsheet",
+  "version": 1,
+  "description": "Example 04 - Compressor charging a receiver. A natural-gas feed enters a compressor whose speed is set by an analog signal source (analog control loop, no wires needed). The compressor discharges through a check valve into a 0.5 m3 receiver, which vents via a valve; an analog display shows the receiver level signal. Increase the speed value (double-click SpeedSetpoint) to raise the discharge pressure and watch the receiver pressurise faster.",
+  "dt": 1.0,
+  "blocks": {
+    "GasFeed": {
+      "type": "StreamIn",
+      "name": "GasFeed",
+      "pos": [40, 200],
+      "config": {
+        "composition": {"methane": 0.95, "ethane": 0.05},
+        "pressure": 3.0e5,
+        "temperature": 293.15,
+        "mass_flow": 1.0,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Compressor1": {
+      "type": "Compressor",
+      "name": "Compressor1",
+      "pos": [300, 120],
+      "config": {
+        "speed": 100.0,
+        "gamma": 1.28,
+        "flow_axis": {"min": 0.0, "max": 2.0},
+        "pr_axis": {"min": 0.0, "max": 4.0},
+        "eff_axis": {"min": 0.0, "max": 100.0},
+        "stations": {
+          "flows": [0.0, 0.5, 1.0, 1.5, 2.0],
+          "pr": [4.0, 3.75, 3.0, 1.75, 0.0],
+          "eff": [50.0, 87.5, 100.0, 87.5, 50.0]
+        }
+      }
+    },
+    "SpeedSetpoint": {
+      "type": "AnalogSource",
+      "name": "SpeedSetpoint",
+      "pos": [300, -80],
+      "config": {
+        "value": 100.0
+      }
+    },
+    "CheckValve1": {
+      "type": "CheckValve",
+      "name": "CheckValve1",
+      "pos": [560, 160],
+      "config": {
+        "cracking_pressure": 0.0
+      }
+    },
+    "Receiver": {
+      "type": "Vessel",
+      "name": "Receiver",
+      "pos": [820, 60],
+      "config": {
+        "volume": 0.5,
+        "temperature": 293.15,
+        "eos": "Ideal Gas",
+        "flash_method": "wilson",
+        "initial_pressure": 5.0e5,
+        "initial_composition": {"methane": 0.95, "ethane": 0.05},
+        "gamma": 1.28
+      }
+    },
+    "LevelDisplay": {
+      "type": "AnalogSink",
+      "name": "LevelDisplay",
+      "pos": [820, -140],
+      "config": {}
+    },
+    "VentValve": {
+      "type": "Valve",
+      "name": "VentValve",
+      "pos": [1080, 260],
+      "config": {
+        "Cv": 0.8,
+        "opening": 25.0,
+        "characteristic": "linear",
+        "gamma": 1.28,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Flare": {
+      "type": "StreamOut",
+      "name": "Flare",
+      "pos": [1340, 300],
+      "config": {
+        "pressure": 101325.0
+      }
+    }
+  },
+  "edges": [
+    ["GasFeed", "out", "Compressor1", "in"],
+    ["SpeedSetpoint", "out", "Compressor1", "speed"],
+    ["Compressor1", "out", "CheckValve1", "in"],
+    ["CheckValve1", "out", "Receiver", "in"],
+    ["Receiver", "level", "LevelDisplay", "in"],
+    ["Receiver", "vap_out", "VentValve", "in"],
+    ["VentValve", "out", "Flare", "in"]
+  ],
+  "charts": [
+    [
+      ["Receiver", ["state", "pressure"], "Receiver pressure [Pa]"],
+      ["LevelDisplay", ["state", "value"], "Level signal"]
+    ],
+    [
+      ["Compressor1", ["port_out", "out", "pressure"], "Compressor discharge P [Pa]"],
+      ["Compressor1", ["port_out", "out", "mass_flow"], "Compressor flow [kg/s]"]
+    ]
+  ]
+}

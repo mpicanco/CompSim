@@ -1,0 +1,8 @@
+PyQt6>=6.6
+numpy>=1.26
+scipy>=1.11
+matplotlib>=3.8
+
+# Optional I/O drivers (OpenPLC / OPC UA / Modbus)
+pymodbus>=3.5
+asyncua>=1.0

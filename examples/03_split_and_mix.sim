@@ -1,0 +1,84 @@
+{
+  "format": "comp-sim-flowsheet",
+  "version": 1,
+  "description": "Example 03 - Split and mix. One supply stream is divided 40/60 by a Divider, each branch is throttled by its own valve, and both branches recombine in an adiabatic Mixer before discharging. Adjust the divider fractions and valve openings to see how the splits and the mixed composition react.",
+  "dt": 1.0,
+  "blocks": {
+    "GasSupply": {
+      "type": "StreamIn",
+      "name": "GasSupply",
+      "pos": [40, 160],
+      "config": {
+        "composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "pressure": 6.0e5,
+        "temperature": 293.15,
+        "mass_flow": 1.0,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Splitter": {
+      "type": "Divider",
+      "name": "Splitter",
+      "pos": [300, 120],
+      "config": {
+        "fractions": [0.4, 0.6]
+      }
+    },
+    "ValveA": {
+      "type": "Valve",
+      "name": "ValveA",
+      "pos": [560, -20],
+      "config": {
+        "Cv": 1.0,
+        "opening": 60.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "ValveB": {
+      "type": "Valve",
+      "name": "ValveB",
+      "pos": [560, 340],
+      "config": {
+        "Cv": 1.0,
+        "opening": 30.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Mixer1": {
+      "type": "Mixer",
+      "name": "Mixer1",
+      "pos": [820, 160],
+      "config": {}
+    },
+    "Discharge": {
+      "type": "StreamOut",
+      "name": "Discharge",
+      "pos": [1080, 200],
+      "config": {
+        "pressure": 101325.0
+      }
+    }
+  },
+  "edges": [
+    ["GasSupply", "out", "Splitter", "in"],
+    ["Splitter", "out1", "ValveA", "in"],
+    ["Splitter", "out2", "ValveB", "in"],
+    ["ValveA", "out", "Mixer1", "in1"],
+    ["ValveB", "out", "Mixer1", "in2"],
+    ["Mixer1", "out", "Discharge", "in"]
+  ],
+  "charts": [
+    [
+      ["Splitter", ["port_out", "out1", "mass_flow"], "Branch A flow [kg/s]"],
+      ["Splitter", ["port_out", "out2", "mass_flow"], "Branch B flow [kg/s]"]
+    ],
+    [
+      ["Mixer1", ["port_out", "out", "mass_flow"], "Mixer out flow [kg/s]"],
+      ["Mixer1", ["port_in", "in1", "mass_flow"], "Mixer in1 flow [kg/s]"]
+    ]
+  ]
+}

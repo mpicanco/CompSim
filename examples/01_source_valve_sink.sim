@@ -1,0 +1,49 @@
+{
+  "format": "comp-sim-flowsheet",
+  "version": 1,
+  "description": "Example 01 - The simplest flowsheet: a gas source, one valve and a sink. The valve opening and Cv control the flow; the sink sets the back-pressure. Try changing the valve / source pressures and watch the flow react.",
+  "dt": 1.0,
+  "blocks": {
+    "GasSupply": {
+      "type": "StreamIn",
+      "name": "GasSupply",
+      "pos": [40, 75],
+      "config": {
+        "composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "pressure": 5.0e5,
+        "temperature": 293.15,
+        "mass_flow": 0.5,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Valve1": {
+      "type": "Valve",
+      "name": "Valve1",
+      "pos": [300, 40],
+      "config": {
+        "Cv": 1.0,
+        "opening": 50.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Atmosphere": {
+      "type": "StreamOut",
+      "name": "Atmosphere",
+      "pos": [560, 0],
+      "config": {
+        "pressure": 101325.0
+      }
+    }
+  },
+  "edges": [
+    ["GasSupply", "out", "Valve1", "in"],
+    ["Valve1", "out", "Atmosphere", "in"]
+  ],
+  "charts": [
+    [
+      ["Valve1", ["port_out", "out", "mass_flow"], "Valve1 flow [kg/s]"]
+    ]
+  ]
+}

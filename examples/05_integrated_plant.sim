@@ -1,0 +1,189 @@
+{
+  "format": "comp-sim-flowsheet",
+  "version": 1,
+  "description": "Example 05 - Integrated plant using every block type. Two air-supply headers (high and low pressure) feed an adiabatic Mixer; the mixed stream is compressed (variable speed via an analog source) and protected by a check valve; a Divider splits the flow 65/35 between a receiver train (fill valve, vessel, vent valve to atmosphere, analog level display) and a bypass train to a flare. Use the analog sources to steer speed and the fill-valve opening while the simulation runs.",
+  "dt": 1.0,
+  "blocks": {
+    "HPsupply": {
+      "type": "StreamIn",
+      "name": "HPsupply",
+      "pos": [40, 60],
+      "config": {
+        "composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "pressure": 8.0e5,
+        "temperature": 293.15,
+        "mass_flow": 1.5,
+        "eos": "Ideal Gas"
+      }
+    },
+    "LPsupply": {
+      "type": "StreamIn",
+      "name": "LPsupply",
+      "pos": [40, 420],
+      "config": {
+        "composition": {"methane": 0.9, "ethane": 0.1},
+        "pressure": 2.0e5,
+        "temperature": 293.15,
+        "mass_flow": 0.5,
+        "eos": "Ideal Gas"
+      }
+    },
+    "FeedMixer": {
+      "type": "Mixer",
+      "name": "FeedMixer",
+      "pos": [320, 220],
+      "config": {}
+    },
+    "Compressor1": {
+      "type": "Compressor",
+      "name": "Compressor1",
+      "pos": [580, 220],
+      "config": {
+        "speed": 80.0,
+        "gamma": 1.4,
+        "flow_axis": {"min": 0.0, "max": 1.0},
+        "pr_axis": {"min": 0.0, "max": 4.0},
+        "eff_axis": {"min": 0.0, "max": 100.0},
+        "stations": {
+          "flows": [0.0, 0.25, 0.5, 0.75, 1.0],
+          "pr": [4.0, 3.75, 3.0, 1.75, 0.0],
+          "eff": [50.0, 87.5, 100.0, 87.5, 50.0]
+        }
+      }
+    },
+    "SpeedSetpoint": {
+      "type": "AnalogSource",
+      "name": "SpeedSetpoint",
+      "pos": [580, 20],
+      "config": {
+        "value": 80.0
+      }
+    },
+    "NCV1": {
+      "type": "CheckValve",
+      "name": "NCV1",
+      "pos": [840, 260],
+      "config": {
+        "cracking_pressure": 0.0
+      }
+    },
+    "Splitter": {
+      "type": "Divider",
+      "name": "Splitter",
+      "pos": [1100, 260],
+      "config": {
+        "fractions": [0.65, 0.35]
+      }
+    },
+    "FillValve": {
+      "type": "Valve",
+      "name": "FillValve",
+      "pos": [1360, 60],
+      "config": {
+        "Cv": 2.0,
+        "opening": 80.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "OpeningSetpoint": {
+      "type": "AnalogSource",
+      "name": "OpeningSetpoint",
+      "pos": [1360, -140],
+      "config": {
+        "value": 80.0
+      }
+    },
+    "Receiver": {
+      "type": "Vessel",
+      "name": "Receiver",
+      "pos": [1620, 0],
+      "config": {
+        "volume": 0.75,
+        "temperature": 293.15,
+        "eos": "Ideal Gas",
+        "flash_method": "wilson",
+        "initial_pressure": 300000.0,
+        "initial_composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "gamma": 1.4
+      }
+    },
+    "LevelDisplay": {
+      "type": "AnalogSink",
+      "name": "LevelDisplay",
+      "pos": [1620, -200],
+      "config": {}
+    },
+    "VentValve": {
+      "type": "Valve",
+      "name": "VentValve",
+      "pos": [1880, 180],
+      "config": {
+        "Cv": 1.2,
+        "opening": 40.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Atmosphere": {
+      "type": "StreamOut",
+      "name": "Atmosphere",
+      "pos": [2140, 220],
+      "config": {
+        "pressure": 101325.0
+      }
+    },
+    "BypassValve": {
+      "type": "Valve",
+      "name": "BypassValve",
+      "pos": [1360, 520],
+      "config": {
+        "Cv": 1.0,
+        "opening": 50.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "Flare": {
+      "type": "StreamOut",
+      "name": "Flare",
+      "pos": [1620, 560],
+      "config": {
+        "pressure": 101325.0
+      }
+    }
+  },
+  "edges": [
+    ["HPsupply", "out", "FeedMixer", "in1"],
+    ["LPsupply", "out", "FeedMixer", "in2"],
+    ["FeedMixer", "out", "Compressor1", "in"],
+    ["SpeedSetpoint", "out", "Compressor1", "speed"],
+    ["Compressor1", "out", "NCV1", "in"],
+    ["NCV1", "out", "Splitter", "in"],
+    ["Splitter", "out1", "FillValve", "in"],
+    ["Splitter", "out2", "BypassValve", "in"],
+    ["OpeningSetpoint", "out", "FillValve", "opening"],
+    ["FillValve", "out", "Receiver", "in"],
+    ["Receiver", "level", "LevelDisplay", "in"],
+    ["Receiver", "vap_out", "VentValve", "in"],
+    ["VentValve", "out", "Atmosphere", "in"],
+    ["BypassValve", "out", "Flare", "in"]
+  ],
+  "charts": [
+    [
+      ["Receiver", ["state", "pressure"], "Receiver pressure [Pa]"],
+      ["Compressor1", ["port_out", "out", "pressure"], "Compressor discharge P [Pa]"]
+    ],
+    [
+      ["Splitter", ["port_out", "out1", "mass_flow"], "Receiver train flow [kg/s]"],
+      ["Splitter", ["port_out", "out2", "mass_flow"], "Bypass train flow [kg/s]"]
+    ],
+    [
+      ["VentValve", ["port_out", "out", "mass_flow"], "Vent flow [kg/s]"],
+      ["LevelDisplay", ["state", "value"], "Level signal"]
+    ]
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "format": "comp-sim-flowsheet",
+  "version": 1,
+  "description": "Example 02 - Fill & vent a vessel. Compressed air at 8 bar(a) feeds a 0.25 m3 receiver through an inlet valve; an outlet valve vents the receiver to atmosphere. Starting at atmospheric pressure, the vessel pressurises until inlet and outlet flows balance. Change the valve openings (double-click a valve) while running to move the equilibrium.",
+  "dt": 1.0,
+  "blocks": {
+    "supply": {
+      "type": "StreamIn",
+      "name": "AirSupply",
+      "pos": [40, 75],
+      "config": {
+        "composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "pressure": 8.0e5,
+        "temperature": 293.15,
+        "mass_flow": 0.5,
+        "eos": "Ideal Gas"
+      }
+    },
+    "inlet_valve": {
+      "type": "Valve",
+      "name": "InletValve",
+      "pos": [300, 40],
+      "config": {
+        "Cv": 2.0,
+        "opening": 100.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "receiver": {
+      "type": "Vessel",
+      "name": "AirReceiver",
+      "pos": [560, 0],
+      "config": {
+        "volume": 0.25,
+        "temperature": 293.15,
+        "eos": "Ideal Gas",
+        "flash_method": "wilson",
+        "initial_pressure": 101325.0,
+        "initial_composition": {"nitrogen": 0.79, "oxygen": 0.21},
+        "gamma": 1.4
+      }
+    },
+    "outlet_valve": {
+      "type": "Valve",
+      "name": "VentValve",
+      "pos": [820, -40],
+      "config": {
+        "Cv": 2.0,
+        "opening": 100.0,
+        "characteristic": "linear",
+        "gamma": 1.4,
+        "eos": "Ideal Gas"
+      }
+    },
+    "atmosphere": {
+      "type": "StreamOut",
+      "name": "Atmosphere",
+      "pos": [1080, -15],
+      "config": {
+        "pressure": 101325.0
+      }
+    }
+  },
+  "edges": [
+    ["supply", "out", "inlet_valve", "in"],
+    ["inlet_valve", "out", "receiver", "in"],
+    ["receiver", "vap_out", "outlet_valve", "in"],
+    ["outlet_valve", "out", "atmosphere", "in"]
+  ],
+  "charts": [
+    [
+      ["receiver", ["state", "pressure"], "Receiver pressure [Pa]"]
+    ],
+    [
+      ["inlet_valve", ["port_out", "out", "mass_flow"], "Inlet flow [kg/s]"],
+      ["outlet_valve", ["port_out", "out", "mass_flow"], "Vent flow [kg/s]"]
+    ]
+  ]
+}
