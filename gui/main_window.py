@@ -129,10 +129,29 @@ class MainWindow(QMainWindow):
             self.play()
 
     def play(self):
+        if not self._check_ready():
+            self.play_btn.setChecked(False)
+            return
         self.running = True
         self.play_btn.setChecked(True)
         self.play_btn.setText("Pause")
         self._apply_interval()
+
+    def _check_ready(self):
+        """Run the pre-run sanity check; report and return False on problems."""
+        problems = self.controller.check_ready()
+        if not problems:
+            return True
+        shown = problems[:15]
+        if len(problems) > len(shown):
+            shown.append(f"... and {len(problems) - len(shown)} more")
+        QMessageBox.warning(
+            self, "Cannot run simulation",
+            "Fix these problems before running. Every material (stream) inlet "
+            "and outlet must be connected; signal ports are optional.\n\n"
+            + "\n".join(f"• {p}" for p in shown))
+        self.notify(f"Not started: {len(problems)} problem(s) in the flowsheet", 15000)
+        return False
 
     def pause(self):
         self.running = False

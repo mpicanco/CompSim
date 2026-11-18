@@ -88,6 +88,14 @@
       "config": {
         "pressure": 101325.0
       }
+    },
+    "Drain": {
+      "type": "StreamOut",
+      "name": "Drain",
+      "pos": [1080, 460],
+      "config": {
+        "pressure": 101325.0
+      }
     }
   },
   "edges": [
@@ -97,7 +105,8 @@
     ["CheckValve1", "out", "Receiver", "in"],
     ["Receiver", "level", "LevelDisplay", "in"],
     ["Receiver", "vap_out", "VentValve", "in"],
-    ["VentValve", "out", "Flare", "in"]
+    ["VentValve", "out", "Flare", "in"],
+    ["Receiver", "liq_out", "Drain", "in"]
   ],
   "charts": [
     [

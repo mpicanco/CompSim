@@ -35,6 +35,17 @@ class SimulationController:
     def remove_edge(self, edge_id):
         self.graph.remove_edge(edge_id)
 
+    def check_ready(self):
+        """Pre-run sanity check; returns a list of problems (empty = ready)."""
+        problems = []
+        if not self.graph.nodes:
+            problems.append("The flowsheet is empty.")
+        for port in self.graph.unconnected_material_ports():
+            kind = "inlet" if port.direction.value == "in" else "outlet"
+            problems.append(f"{port.owner.name}: material {kind} '{port.name}' "
+                            "is not connected")
+        return problems
+
     def step(self):
         self.simulator.step()
 

@@ -61,13 +61,22 @@
       "config": {
         "pressure": 101325.0
       }
+    },
+    "drain": {
+      "type": "StreamOut",
+      "name": "Drain",
+      "pos": [820, 200],
+      "config": {
+        "pressure": 101325.0
+      }
     }
   },
   "edges": [
     ["supply", "out", "inlet_valve", "in"],
     ["inlet_valve", "out", "receiver", "in"],
     ["receiver", "vap_out", "outlet_valve", "in"],
-    ["outlet_valve", "out", "atmosphere", "in"]
+    ["outlet_valve", "out", "atmosphere", "in"],
+    ["receiver", "liq_out", "drain", "in"]
   ],
   "charts": [
     [

@@ -341,6 +341,16 @@ python main.py       # directly from the source tree
 | Close flowsheet | <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Switch theme | **Light/Dark** button in the toolbar |
 
+### Pre-run check
+
+Every time you click **Play**, the flowsheet is checked before the
+simulation starts. **Every material (stream) inlet and outlet must be
+connected**, including a `Vessel` `liq_out` that may never carry liquid:
+connect it to a `StreamOut` drain. Signal ports (`speed`, `opening`, `level`,
+analog blocks) are optional; a block with an open signal inlet uses its
+configured value. If anything is missing, the simulation does not start and
+a dialog lists each open port by block and port name.
+
 ### Bundled examples
 
 | File | What it shows |

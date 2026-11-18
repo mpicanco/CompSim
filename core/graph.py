@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from uuid import uuid4
 
-from .ports import Port
+from .ports import Port, PortType
 
 
 class Edge:
@@ -85,6 +85,19 @@ class Graph:
             if e.source is source_port and e.target is target_port:
                 return e
         return None
+
+    # -- pre-run checks -----------------------------------------------------
+    def unconnected_material_ports(self):
+        """Material (stream) ports, inlets and outlets, left unconnected.
+
+        Every material port must be connected before a run: an open inlet
+        has no feed and an open outlet has nowhere to send its flow. Signal
+        ports are optional (a block falls back to its configured value).
+        """
+        return [port
+                for block in self.nodes
+                for port in list(block.inputs.values()) + list(block.outputs.values())
+                if port.port_type is PortType.MATERIAL and not port.is_connected]
 
     # -- execution order ----------------------------------------------------
     def _adjacency(self):
