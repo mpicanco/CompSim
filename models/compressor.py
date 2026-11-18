@@ -42,9 +42,15 @@ def default_axis(**kwargs):
     return {"min": float(kwargs.get("min", 0.0)),
             "max": float(kwargs.get("max", 100.0))}
 
+# the default pressure-ratio curve starts at this fraction of its axis span:
+# 2/3 of the default 0..3 axis, i.e. a pressure ratio of 2 at surge
+_PR_START = 2.0 / 3.0
+
+
 def _pr_fraction(f):
-    """Pressure-ratio axis fraction: decreasing half-parabola, y-max at f=0."""
-    return 1.0 - f * f
+    """Pressure-ratio axis fraction: decreasing half-parabola from
+    ``_PR_START`` at f=0 down to the axis minimum at f=1."""
+    return _PR_START * (1.0 - f * f)
 
 def _eff_fraction(f):
     """Efficiency axis fraction: upside-down parabola, peak 1.0 at f=0.5,
@@ -133,11 +139,12 @@ class Compressor(ProcessBlock):
     """Centrifugal compressor with an OEM 100 %-speed performance curve.
 
     The curve set consists of two 5-point splines over inlet volumetric flow
-    (m3/s): the pressure-ratio curve is a decreasing half-parabola that starts
-    at the pressure-ratio axis maximum, and the efficiency curve is an
-    upside-down parabola peaking at the efficiency axis maximum, both drawn
-    from and back to half the axis. Flows cover the axis from surge (0) to
-    choke (1). Off-design operation follows the affinity laws: the curve flow
+    (m3/s). The default pressure-ratio curve is a decreasing half-parabola
+    from 2/3 of its axis (a ratio of 2 on the default 0-3 axis) down to the
+    axis minimum; the default efficiency curve is an upside-down parabola
+    peaking at the efficiency axis maximum, drawn from and back to half the
+    axis. Flows cover the axis from surge (0) to choke (1). Off-design
+    operation follows the affinity laws: the curve flow
     is scaled 1/N and the pressure rise scales with N^2. The efficiency read
     from the curve drives the polytropic discharge temperature.
     """
@@ -151,7 +158,7 @@ class Compressor(ProcessBlock):
         self.add_input("speed", PortType.SIGNAL)
         self.add_output("out")
         flow_axis = default_axis(min=0.0, max=100.0)
-        pr_axis = default_axis(min=0.0, max=100.0)
+        pr_axis = default_axis(min=0.0, max=3.0)
         eff_axis = default_axis(min=0.0, max=100.0)
         self.config = {
             "speed": 100.0,
